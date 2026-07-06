@@ -21,7 +21,7 @@ def load_geodata():
         print("twCounty.geojson not found, downloading...")
         urllib.request.urlretrieve(GEOJSON_URL, GEOJSON_PATH)
         print("Download complete.")
-    gdf = gpd.read_file(GEOJSON_PATH)
+    gdf = gpd.read_file(GEOJSON_PATH, engine='pyogrio')
     print(f"GeoJSON loaded: {len(gdf)} counties")
     print(f"Columns: {list(gdf.columns)}")
 
@@ -73,10 +73,10 @@ def generate_map():
 
     data = request.json or {}
 
-    # Normalize '台' -> '臺' for matching
+    # Normalize '臺' -> '台' to match GeoJSON (g0v uses 台, CWA uses 臺)
     normalized_data = {}
     for k, v in data.items():
-        k_norm = k.replace('台', '臺')
+        k_norm = k.replace('臺', '台')
         normalized_data[k_norm] = float(v) if v else 0.0
 
     # Find the county name column
