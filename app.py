@@ -32,12 +32,16 @@ except Exception as e:
     print(f"Error loading GeoJSON: {e}")
 
 # ─── Font Setup for Linux (Render) ───────────────────────
-# On Render (Linux), we use matplotlib's default fonts.
-# CJK fonts may not be available, so we use a Unicode-capable fallback.
-plt.rcParams['font.sans-serif'] = [
-    'Noto Sans CJK TC', 'Noto Sans CJK SC', 'WenQuanYi Zen Hei',
-    'Arial Unicode MS', 'DejaVu Sans', 'sans-serif'
-]
+font_path = 'NotoSansTC-Regular.otf'
+if os.path.exists(font_path):
+    import matplotlib.font_manager as fm
+    fm.fontManager.addfont(font_path)
+    plt.rcParams['font.sans-serif'] = ['Noto Sans TC', 'sans-serif']
+else:
+    plt.rcParams['font.sans-serif'] = [
+        'Noto Sans CJK TC', 'Noto Sans CJK SC', 'WenQuanYi Zen Hei',
+        'Arial Unicode MS', 'DejaVu Sans', 'sans-serif'
+    ]
 plt.rcParams['axes.unicode_minus'] = False
 
 # ─── Color scale based on CWA rainfall thresholds ────────
@@ -100,20 +104,37 @@ def generate_map():
 
     gdf.plot(ax=ax, color=gdf['color'], edgecolor='#555555', linewidth=0.6)
 
+    # Focus on main island (exclude offshore)
+    offshore_islands = ['金門縣', '連江縣', '澎湖縣']
+    main_island = gdf[~gdf[county_col].isin(offshore_islands)]
+    
+    if not main_island.empty:
+        minx, miny, maxx, maxy = main_island.total_bounds
+        pad_x = (maxx - minx) * 0.05
+        pad_y = (maxy - miny) * 0.05
+        ax.set_xlim(minx - pad_x, maxx + pad_x)
+        ax.set_ylim(miny - pad_y, maxy + pad_y)
+
     # ─── Labels ───────────────────────────────────────────
+    offshore_texts = []
+
     for _, row in gdf.iterrows():
         county = row[county_col]
         rain = row['rainfall']
         centroid = row['geometry'].centroid
         
+        if county in offshore_islands:
+            offshore_texts.append(f"{county}: {rain:.1f}mm")
+            continue
+        
         if rain > 0:
             label = f"{county}\n{rain:.1f}mm"
             weight = 'bold'
-            fsize = 7.5
+            fsize = 8
         else:
             label = county
             weight = 'normal'
-            fsize = 7
+            fsize = 7.5
 
         ax.annotate(
             text=label,
@@ -123,6 +144,13 @@ def generate_map():
             color='#222222',
             fontweight=weight
         )
+
+    # Add Offshore Islands Info Text Box
+    if offshore_texts:
+        info_text = "【外島累積雨量】\n" + "\n".join(offshore_texts)
+        ax.text(0.03, 0.97, info_text, transform=ax.transAxes,
+                fontsize=10, fontweight='bold', va='top', ha='left',
+                bbox=dict(boxstyle='round,pad=0.6', facecolor='#FFFFFF', alpha=0.9, edgecolor='#CCCCCC'))
 
     # ─── Legend ───────────────────────────────────────────
     legend_items = [
