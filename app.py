@@ -4,6 +4,7 @@ import matplotlib
 matplotlib.use('Agg')  # Must be before pyplot import for headless server
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import matplotlib.patheffects as PathEffects
 import io
 import os
 import urllib.request
@@ -118,6 +119,17 @@ def generate_map():
     # ─── Labels ───────────────────────────────────────────
     offshore_texts = []
 
+    # Manual offsets (longitude, latitude) to prevent overlaps
+    label_offsets = {
+        '台北市': (0.05, 0.08),
+        '新北市': (-0.12, -0.10),
+        '基隆市': (0.12, 0.05),
+        '嘉義市': (-0.08, 0.02),
+        '嘉義縣': (0.12, -0.08),
+        '新竹市': (-0.06, 0.05),
+        '新竹縣': (0.08, -0.05)
+    }
+
     for _, row in gdf.iterrows():
         county = row[county_col]
         rain = row['rainfall']
@@ -136,14 +148,18 @@ def generate_map():
             weight = 'normal'
             fsize = 7.5
 
-        ax.annotate(
+        cx = centroid.x + label_offsets.get(county, (0, 0))[0]
+        cy = centroid.y + label_offsets.get(county, (0, 0))[1]
+
+        txt = ax.annotate(
             text=label,
-            xy=(centroid.x, centroid.y),
+            xy=(cx, cy),
             ha='center', va='center',
             fontsize=fsize,
-            color='#222222',
+            color='#111111',
             fontweight=weight
         )
+        txt.set_path_effects([PathEffects.withStroke(linewidth=2.5, foreground='white')])
 
     # Add Offshore Islands Info Text Box
     if offshore_texts:
